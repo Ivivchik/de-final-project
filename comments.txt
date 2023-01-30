@@ -1,0 +1,52 @@
+1. Вопрос по поводу данных.
+    Может ли быть в рамках одной транзакции перевод нескольким аккаунтам/разные валюты/страны
+    Забрал все файлы с s3 сделала следующий запрос
+
+  select cnt, count(operation_id) from (
+		select count(DISTINCT account_number_to) as cnt, operation_id
+	      from IVIVCHIKYANDEXRU__STAGING.transactions t
+	     where account_number_from > 0 and account_number_to > 0
+      group by operation_id ) t
+group by cnt
+order by cnt
+
+Получил вот такой результат:
+
+cnt|count |
+---+------+
+  1|236671|
+  2| 36944|
+  4|     1|
+
+Взял одного абонента из группы где кол-во account_number_to = 2:
+operation_id                        |account_number_from|account_number_to|currency_code|country|status     |transaction_type|amount|transaction_dt         |
+------------------------------------+-------------------+-----------------+-------------+-------+-----------+----------------+------+-----------------------+
+09d9e01c-3eed-44db-aff8-7b61e10ccd8c|             583327|           903810|          420|usa    |in_progress|c2a_incoming    |150000|2022-10-20 14:47:44.000|
+09d9e01c-3eed-44db-aff8-7b61e10ccd8c|             583327|           903810|          420|usa    |chargeback |c2a_incoming    |150000|2022-10-20 21:47:56.000|
+09d9e01c-3eed-44db-aff8-7b61e10ccd8c|             583327|           903810|          420|usa    |done       |c2a_incoming    |150000|2022-10-20 14:47:56.000|
+09d9e01c-3eed-44db-aff8-7b61e10ccd8c|             583327|           679005|          430|russia |queued     |c2a_incoming    |150000|2022-10-20 14:47:32.000|
+09d9e01c-3eed-44db-aff8-7b61e10ccd8c|             583327|           679005|          430|russia |in_progress|c2a_incoming    |150000|2022-10-20 14:47:44.000|
+09d9e01c-3eed-44db-aff8-7b61e10ccd8c|             583327|           903810|          420|usa    |queued     |c2a_incoming    |150000|2022-10-20 14:47:32.000|
+09d9e01c-3eed-44db-aff8-7b61e10ccd8c|             583327|           679005|          430|russia |done       |c2a_incoming    |150000|2022-10-20 14:47:56.000|
+
+Пример где одна транзакция, но две разные страны. Может это коненчо перевод из банка одной страны в банк другой, смущает одинаковое время и
+думаю, что если ты переводишь с рублевого счета на долларовый, будет две транзакиции, первая перевод рубли в доллары и потом и уже перевод основной(может я не прав)
+operation_id                        |account_number_from|account_number_to|currency_code|country|status     |transaction_type|amount|transaction_dt         |
+------------------------------------+-------------------+-----------------+-------------+-------+-----------+----------------+------+-----------------------+
+46602031-3ff9-4f41-a8e4-3b9449b2aa0f|            7093736|           903810|          420|usa    |done       |sbp_incoming    | 12300|2022-10-20 16:54:35.000|
+46602031-3ff9-4f41-a8e4-3b9449b2aa0f|            7093736|           903810|          420|usa    |in_progress|sbp_incoming    | 12300|2022-10-20 16:54:23.000|
+46602031-3ff9-4f41-a8e4-3b9449b2aa0f|            7093736|           903810|          420|usa    |queued     |sbp_incoming    | 12300|2022-10-20 16:54:11.000|
+46602031-3ff9-4f41-a8e4-3b9449b2aa0f|            7093736|           903810|          430|russia |chargeback |sbp_incoming    | 12300|2022-10-20 23:54:35.000|
+46602031-3ff9-4f41-a8e4-3b9449b2aa0f|            7093736|           903810|          430|russia |done       |sbp_incoming    | 12300|2022-10-20 16:54:35.000|
+46602031-3ff9-4f41-a8e4-3b9449b2aa0f|            7093736|           903810|          430|russia |in_progress|sbp_incoming    | 12300|2022-10-20 16:54:23.000|
+46602031-3ff9-4f41-a8e4-3b9449b2aa0f|            7093736|           903810|          430|russia |queued     |sbp_incoming    | 12300|2022-10-20 16:54:11.000|
+
+Я не знаю всех правил банковских транзация, но не должно ли быть два разных индификатора operation_id для этого кейса ? 
+
+
+2. Так как я делаю copy from сразу с s3, то у меня при каждой заливки будут повторяться данные, сделал drop_duplicate(https://www.vertica.com/blog/another-way-to-de-duplicate-table-rows-quick-tip/)
+Если можно как-то лучше, буду рад услышать
+
+3. Пришлось каждый раз при наложение ограничений делать enabled так как изначально они выключены. 
+    То есть пишешь "id int primary key" и при просмотре ddl видно constrant c_primary_key (id) disabled и соответвенно в таблицу можно вставить несколько одинаковый id
+
