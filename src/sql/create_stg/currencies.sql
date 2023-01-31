@@ -5,6 +5,6 @@ CREATE TABLE IF NOT EXISTS IVIVCHIKYANDEXRU__STAGING.currencies_history(
     currency_with_dev 	NUMERIC(19,2) 	NOT NULL
 )
 ORDER BY currency_code, currency_code_with
-SEGMENTED BY HASH(currency_code, currency_code_with) ALL NODES
+SEGMENTED BY HASH(currency_code, currency_code_with,date_update) ALL NODES
 PARTITION BY date_update::DATE
 GROUP BY CALENDAR_HIERARCHY_DAY(date_update::DATE, 1, 2);

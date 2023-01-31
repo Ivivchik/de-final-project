@@ -10,6 +10,6 @@ CREATE TABLE IF NOT EXISTS IVIVCHIKYANDEXRU__STAGING.transactions(
     transaction_dt           TIMESTAMP      NOT NULL
 )
 ORDER BY operation_id
-SEGMENTED BY HASH(operation_id) ALL NODES
+SEGMENTED BY HASH(operation_id,transaction_dt) ALL NODES
 PARTITION BY transaction_dt::DATE
 GROUP BY CALENDAR_HIERARCHY_DAY(transaction_dt::DATE, 1, 2)
